@@ -14,16 +14,16 @@ public class ReadMetaTraderCSV {
 	private static FileReader filereader;
 	private Ativo ativo;
 	
-    public ReadMetaTraderCSV() {
+    public ReadMetaTraderCSV(String name) {
 		
-    	ativo = new Ativo();
+    	ativo = new Ativo(name);
 	}
     
 	
 	public Ativo load(String file){
 		
 		ArrayList<String> date = new ArrayList<>();
-		ArrayList<String> time = new ArrayList<>();
+//		ArrayList<String> time = new ArrayList<>();
 		ArrayList<Double> open = new ArrayList<>();
 		ArrayList<Double> high = new ArrayList<>();
 		ArrayList<Double> low = new ArrayList<>();
@@ -45,14 +45,14 @@ public class ReadMetaTraderCSV {
 	    	   
 	    	   
 	    	   date.add(line[0]);
-	    	   time.add(line[1]);
-	    	   open.add(Double.parseDouble(line[2]));  
-	    	   high.add(Double.parseDouble(line[3])); 
-	    	   low.add(Double.parseDouble(line[4])); 
-	    	   close.add(Double.parseDouble(line[5]));
-	    	   tickvol.add(Integer.parseInt(line[6])); 
-	    	   vol.add(Double.parseDouble(line[7]));
-	    	   spread.add(Integer.parseInt(line[8]));
+//	    	   time.add(line[1]);
+	    	   open.add(Double.parseDouble(line[1]));  
+	    	   high.add(Double.parseDouble(line[2])); 
+	    	   low.add(Double.parseDouble(line[3])); 
+	    	   close.add(Double.parseDouble(line[4]));
+	    	   tickvol.add(Integer.parseInt(line[5])); 
+	    	   vol.add(Double.parseDouble(line[6]));
+	    	   spread.add(Integer.parseInt(line[7]));
 	    	   
 	       } 
 	    }
@@ -61,7 +61,7 @@ public class ReadMetaTraderCSV {
 	    }
 	
 		ativo.setDate(date);
-		ativo.setTime(time);
+//		ativo.setTime(time);
 		ativo.setOpens(open);
 		ativo.setHighs(high);
 		ativo.setLows(low);
