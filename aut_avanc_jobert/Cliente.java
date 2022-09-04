@@ -17,20 +17,26 @@ public class Cliente extends Thread{
 	Corretora corretora;
 	ArrayList<Ativo> ativos;
 	
-	Cliente(String name, Corretora corretora, Double balance, ArrayList<Ativo> ativos) {
+	Double riskMultiplier;
+	boolean useSimpleAverage;
+	
+	Integer numberOfDataPoints;
+	
+	Cliente(String name, Corretora corretora, Double balance, ArrayList<Ativo> ativos, Double riskMultiplier, boolean useSimpleAverage) {
 		
 		this.name = name;
 		this.corretora = corretora;
 		this.balance = balance;
 		this.ativos = ativos;
+		this.riskMultiplier = riskMultiplier;
+		this.useSimpleAverage = useSimpleAverage;
 		
+		numberOfDataPoints = ativos.get(0).closes.size() - 1;
 	}
 
 	@Override
-	public void run() {
-				
-		realizarOperacoes();
-		
+	public void run() {	
+		operate();
 	}
 	
 	void redemption(Double value) {
@@ -42,62 +48,62 @@ public class Cliente extends Thread{
 	}
 	
 	Boolean hasAtivo(Ativo ativo) {
-		if(ativo.name == "ouro") {
+		if(ativo.name.equals("Dolar Australiano")) {
 			return hasAtivoA;
 		}
 		
-		if(ativo.name == "prata") {
+		if(ativo.name.equals("Dolar Nova Zelandia")) {
 			return hasAtivoB;
 		}
 		
-		if(ativo.name == "platina") {
+		if(ativo.name.equals("Euro")) {
 			return hasAtivoC;
 		}
 		
-		if(ativo.name == "paladium") {
+		if(ativo.name.equals("Libra Esterlina")) {
 			return hasAtivoD;
 		}
 		return false;
 	}
 	
 	void buyAtivo(Ativo ativo) {
-		if(ativo.name == "ouro") {
+		if(ativo.name.equals("Dolar Australiano")) {
 			hasAtivoA = true;
 		}
 		
-		if(ativo.name == "prata") {
+		if(ativo.name.equals("Dolar Nova Zelandia")) {
 			hasAtivoB = true;
 		}
 		
-		if(ativo.name == "platina") {
+		if(ativo.name.equals("Euro")) {
 			hasAtivoC = true;
 		}
 		
-		if(ativo.name == "paladium") {
+		if(ativo.name.equals("Libra Esterlina")) {
 			hasAtivoD = true;
 		}
 	}
 	
 	void sellAtivo(Ativo ativo) {
-		if(ativo.name == "ouro") {
+		if(ativo.name.equals("Dolar Australiano")) {
 			hasAtivoA = false;
 		}
 		
-		if(ativo.name == "prata") {
+		if(ativo.name.equals("Dolar Nova Zelandia")) {
 			hasAtivoB = false;
 		}
 		
-		if(ativo.name == "platina") {
+		if(ativo.name.equals("Euro")) {
 			hasAtivoC = false;
 		}
 		
-		if(ativo.name == "paladium") {
+		if(ativo.name.equals("Libra Esterlina")) {
 			hasAtivoD = false;
 		}
 	}
 	
-	void realizarOperacoes() {
-		for(Integer i=0; i<1000; i++) {
+	void operate() {
+		for(Integer i=0; i < numberOfDataPoints; i++) {
 			for(Ativo ativo : ativos) {
 				analyse(ativo, i);
 			}
@@ -144,53 +150,69 @@ public class Cliente extends Thread{
 		
 		this.setPriority(MAX_PRIORITY);
 	
-		Double drawdown = ((getMaxValue(ativo.closes, 7, index) - getMinValue(ativo.closes, 7, index))/getMaxValue(ativo.closes, 7, index));
+		Double drawdown = ((getMaxValue(ativo.closes, 3, index) - getMinValue(ativo.closes, 3, index))/getMaxValue(ativo.closes, 3, index));
 		
 		if(risk < drawdown) {
+			this.setPriority(NORM_PRIORITY);
 			return true;
 		}
 		
+		this.setPriority(NORM_PRIORITY);
 		return false;
 	}
 	
 	void analyse(Ativo ativo, Integer index) {
-		ArrayList<Double> shortTermMA = ativo.movingAverage(ativo.closes, 7);
-		ArrayList<Double> longTermMA = ativo.movingAverage(ativo.closes, 30);
-		ArrayList<Double> stdDev = ativo.standardDeviation(ativo.closes, 7);
+
+		ArrayList<Double> shortTermMA = new ArrayList();
+		ArrayList<Double> longTermMA = new ArrayList();
+		ArrayList<Double> stdDev = new ArrayList();
+		
+		if(useSimpleAverage) {
+			shortTermMA = ativo.movingAverage(ativo.closes, 3);
+			longTermMA = ativo.movingAverage(ativo.closes, 15);
+		}
+		
+		else {
+			shortTermMA = ativo.exponentialMovingAverage(ativo.closes, 3);
+			longTermMA = ativo.exponentialMovingAverage(ativo.closes, 15);
+		}
+		
+		stdDev = ativo.standardDeviation(ativo.closes, 3);
 		
 		
-		if(shortTermMA.get(index) > longTermMA.get(index) && !hasAtivo(ativo)) {
-			if(!drawdown(ativo, stdDev.get(index), index)) {
-				this.setPriority(NORM_PRIORITY);
-				
-				if(corretora.requireOperation(this, true, ativo, index)) {
-					buyAtivo(ativo);
-					//salvar extrato
-					operations++;
-					try {
-						Cliente.sleep(500);
-					} 
-			    	catch (InterruptedException e) {
-						e.printStackTrace();
-					}
+		if(shortTermMA.get(index) > longTermMA.get(index) && 
+		   !hasAtivo(ativo) &&
+		   !drawdown(ativo, stdDev.get(index) * riskMultiplier, index)){
+			
+		    	if(corretora.requireOperation(this, true, ativo, index)){
+			
+		    		buyAtivo(ativo);
+		    		//salvar extrato
+		    		operations++;
+		    		try {
+		    			Cliente.sleep(500);
+		    		} 
+		    		catch (InterruptedException e) {
+		    			e.printStackTrace();
+		    		}
+		    }
+		}else if(shortTermMA.get(index) < longTermMA.get(index) && 
+				hasAtivo(ativo) && 
+				drawdown(ativo, stdDev.get(index) * riskMultiplier, index)) {
+			
+		
+					if(corretora.requireOperation(this, false, ativo, index)) {
+			
+						sellAtivo(ativo);
+						//salvar extrado
+						operations++;
+						try {
+							Cliente.sleep(500);
+						} 
+						catch (InterruptedException e) {
+							e.printStackTrace();
+						}
 				}
-			}
-		} else if(shortTermMA.get(index) < longTermMA.get(index) && hasAtivo(ativo)) {
-			if(drawdown(ativo, stdDev.get(index), index)) {
-				this.setPriority(NORM_PRIORITY);
-				
-				if(corretora.requireOperation(this, false, ativo, index)) {
-					sellAtivo(ativo);
-					//salvar extrado
-					operations++;
-					try {
-						Cliente.sleep(500);
-					} 
-			    	catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-			}
 		}
 	}
 

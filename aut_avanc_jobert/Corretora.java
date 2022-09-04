@@ -31,10 +31,10 @@ public class Corretora implements Runnable{
 		
 		this.name = name;
 		
-		ativoA = new ReadMetaTraderCSV("ouro").load("ouro.csv");
-		ativoB = new ReadMetaTraderCSV("prata").load("prata.csv");
-		ativoC = new ReadMetaTraderCSV("platina").load("platina.csv");
-		ativoD = new ReadMetaTraderCSV("paladium").load("paladium.csv");
+		ativoA = new ReadMetaTraderCSV("Dolar Australiano").load("dolaraustraliano_dolar.csv");
+		ativoB = new ReadMetaTraderCSV("Dolar Nova Zelandia").load("dolarnovazelandia_dolar.csv");
+		ativoC = new ReadMetaTraderCSV("Euro").load("euro_dolar.csv");
+		ativoD = new ReadMetaTraderCSV("Libra Esterlina").load("libraesterlina_dolar.csv");
 		
 		ativosList.add(ativoA);
 		ativosList.add(ativoB);
@@ -51,123 +51,105 @@ public class Corretora implements Runnable{
 //			e.printStackTrace();
 //		}
 		
-		System.out.println("--- Iniciando operacoes --- \n --- " + name + " ---");
-		System.out.println("");
+		System.out.println("--- Iniciando operacoes --- \n --- " + name + " --- \n");
 		
 	}
 	
 	@Override
-	public void run() {
-		
-		
-	}
+	public void run() {}
 	
 
-	public synchronized boolean requireOperation(Cliente cliente, boolean buy, Ativo ativo, int indice) {
-
+	boolean requireOperation(Cliente cliente, boolean buy, Ativo ativo, int indice) {
+		
+		boolean operationDone = false;
+		
 		if(operations < 1000) {
 			if(caixa1.tryAcquire()) {
+				
 				try {
-					if(operate(cliente, buy, ativo, indice, "caixa 1")) {
+					if(executeOperation(cliente, buy, ativo, indice, "caixa 1")) {
 						operations++;
 //						caixaGeral.salvarDados(getAtivo(tipo).getDatas().get(indice), getAtivo(tipo).getCloses().get(indice), operacao);
-						return true;
+						operationDone = true;
+						try {
+			    			Cliente.sleep(100);
+			    		} 
+			    		catch (InterruptedException e) {
+			    			e.printStackTrace();
+			    		}
 					}
-
 				} catch (Exception e) {
-					e.printStackTrace();
+						e.printStackTrace();
 				} finally {
 					caixa1.release();
-					leave(cliente, "caixa 1");
 				}
-			}
-
-			else if(caixa2.tryAcquire()) {
+			} else if(caixa2.tryAcquire()) {
 				try {
-					if(operate(cliente, buy, ativo, indice, "caixa 1")) {
+					if(executeOperation(cliente, buy, ativo, indice, "caixa 2")) {
 						operations++;
 //						caixaGeral.salvarDados(getAtivo(tipo).getDatas().get(indice), getAtivo(tipo).getCloses().get(indice), operacao);
-						return true;
+						operationDone = true;
+						try {
+			    			Cliente.sleep(100);
+			    		} 
+			    		catch (InterruptedException e) {
+			    			e.printStackTrace();
+			    		}
 					}
-
-
 				} catch (Exception e) {
 					e.printStackTrace();
 				} finally {
 					caixa2.release();
-					leave(cliente, "caixa 2");
-
 				}
-			}
-		}
-		else {
-			
-			System.out.println("");
-			System.out.println("Não há operacões disponíveis no momento");
-			
+			} 
+//			else {
+//			System.out.println("\n\n--- não há caixas disponíveis ---");
+//			}
+		} else {
+			System.out.println("\n\n--- Corretora encerrou as operacões ---");
 			System.exit(0);
-		}
-		
-		return false;
-		
+		}		
+		return operationDone;
 	}
 	   
 	
-    private boolean operate(Cliente cliente, boolean buy, Ativo ativo, int indice, String caixa) {
-		
-    	boolean retorno = true;
-    	
-		System.out.println(caixa + ": acessado por cliente " + cliente.name);
+    boolean executeOperation(Cliente cliente, boolean buy, Ativo ativo, int index, String caixa) {
 		
 		if(buy) {
-			
-			if(!buy(cliente, ativo, indice)) {
+			if(!buy(cliente, ativo, index, caixa)) {
 				return false;
-			}
-			
+			} else {return true;}
 		}
 		else {
-			sell(cliente, ativo, indice);
+			sell(cliente, ativo, index, caixa);
 		}
-		
-		return retorno;	
-        
-    }
-	
-    private void leave(Cliente cliente, String caixa) {
-    	
-    	System.out.println(caixa + ": encerrou operacão de cliente " + cliente.name);
-        System.out.println("");
+		return true;	
     }
 
 	
 	
-	private void sell(Cliente cliente, Ativo ativo, int index){
+	void sell(Cliente cliente, Ativo ativo, int index, String caixa){
         
 	   double price = ativo.closes.get(index);
-        
-	   System.out.println("Saldo: " + cliente.balance);
        cliente.deposit(price);
-       System.out.println("Vendeu o ativo " + ativo.name);
-       System.out.println("Saldo: " + cliente.balance);
+
+       System.out.println(caixa +": " + cliente.name +" executou operacão de venda do ativo " + ativo.name + " por " + price + ". Novo Saldo: " + cliente.balance);
     }
 	
-	private boolean buy(Cliente cliente, Ativo ativo, int index){
-		System.out.println("tentando comprar o ativo " + ativo.name);
+	boolean buy(Cliente cliente, Ativo ativo, int index, String caixa){
+		
 		double price = ativo.closes.get(index);
 		
         if(cliente.balance < price){
         	
-             System.out.println("Cliente não tem saldo para comprar o ativo");
+             System.out.println("Cliente não tem saldo para comprar o ativo " + ativo.name);
              
              return false;
         }
 
         else {
-        	System.out.println("Saldo: " + cliente.balance);
         	cliente.redemption(price);
-        	System.out.println("Comprou o ativo " + ativo.name);
-        	System.out.println("Saldo: " + cliente.balance);
+        	System.out.println(caixa +": " + cliente.name +" executou operacão de compra do ativo " + ativo.name + " por " + price + ". Novo Saldo: " + cliente.balance);
 
         	return true;
         }
